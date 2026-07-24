@@ -1,10 +1,9 @@
 /**
- * EXTREMES GLÜCKSRAD - ULTRA PRO SCRIPT 🚀✨
- * Features: Velocity-basierte Audio-Engine, Neon-Glow Rendering, 
- * Physik-basierte Reibung, Sieger-Pulsieren & Multi-Confetti.
+ * EXTREMES GLÜCKSRAD - RIGGED ADMIN EDITION 🤫🚀
+ * Features: Unsichtbarer Tasten-Cheat (1-9), Fake-Physics (deterministisch),
+ * Neon-Glow Rendering, Velocity-Audio & Multi-Confetti.
  */
 
-// --- 1. Extreme Audio-Engine (Dynamischer Pitch & Volume) ---
 class SoundEffects {
     constructor() {
         this.ctx = null;
@@ -24,14 +23,12 @@ class SoundEffects {
         }
     }
 
-    // Tick passt sich der Geschwindigkeit an (0.0 bis 1.0)
     playTick(speedFactor = 1) {
         try {
             this.init();
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             
-            // Extreme Dynamik: Schneller = Höherer Pitch & kürzerer Sound
             const baseFreq = 150 + (speedFactor * 300); 
             const duration = 0.02 + (0.03 * (1 - speedFactor)); 
 
@@ -39,7 +36,6 @@ class SoundEffects {
             osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + duration);
             
-            // Lautstärke skaliert mit Geschwindigkeit
             const volume = 0.2 + (speedFactor * 0.6);
             gain.gain.setValueAtTime(volume, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
@@ -52,18 +48,16 @@ class SoundEffects {
         } catch (e) {}
     }
 
-    // Epische 8-Bit Victory Fanfare
     playFanfare() {
         try {
             this.init();
-            // Arpeggio C-Dur -> G-Dur -> C-Dur (High)
             const notes = [261.63, 329.63, 392.00, 523.25, 392.00, 523.25, 659.25, 1046.50];
             
             notes.forEach((freq, index) => {
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 
-                osc.type = index === notes.length - 1 ? 'square' : 'sine'; // Fetter Schlusston
+                osc.type = index === notes.length - 1 ? 'square' : 'sine'; 
                 
                 const startTime = this.ctx.currentTime + index * 0.08;
                 const duration = index === notes.length - 1 ? 1.5 : 0.1;
@@ -86,7 +80,6 @@ class SoundEffects {
 
 const sfx = new SoundEffects();
 
-// --- 2. Extreme Konfiguration & Neon-Palette ---
 const PALETTE = [
     { main: "#6366F1", glow: "#818cf8" }, { main: "#EC4899", glow: "#f472b6" },
     { main: "#8B5CF6", glow: "#a78bfa" }, { main: "#10B981", glow: "#34d399" },
@@ -101,14 +94,16 @@ const DEFAULT_OPTIONS = [
 
 let options = [];
 let currentRotation = 0;
-let currentVelocity = 0; // Physik-Engine State
+let currentVelocity = 0; 
 let isSpinning = false;
 let animationFrameId = null;
 let lastTickSegment = -1;
-let winningSegmentIndex = -1; // Für den Pulsier-Effekt am Ende
+let winningSegmentIndex = -1; 
 let pulseTime = 0;
 
-// DOM Elemente (wie zuvor)
+// 🤫 Das Herzstück der Manipulation
+let secretTargetIndex = -1; // -1 bedeutet "Fairer Modus"
+
 const canvas = document.getElementById('wheelCanvas');
 const ctx = canvas.getContext('2d');
 const spinBtn = document.getElementById('spinBtn');
@@ -122,14 +117,11 @@ const winnerText = document.getElementById('winnerText');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const pointerEl = document.querySelector('.pointer');
 
-// --- 3. Initialisierung & Event Listener ---
 function init() {
     loadOptions();
     renderList();
     drawWheel();
     setupEventListeners();
-    
-    // Resize Observer für Responsive Canvas
     window.addEventListener('resize', () => drawWheel());
 }
 
@@ -145,8 +137,8 @@ function saveOptions() {
 function setupEventListeners() {
     addForm.addEventListener('submit', (e) => { e.preventDefault(); addOption(); });
     resetBtn.addEventListener('click', resetOptions);
-    spinBtn.addEventListener('click', startPhysicsSpin);
-    canvas.addEventListener('click', startPhysicsSpin);
+    spinBtn.addEventListener('click', startRiggedSpin);
+    canvas.addEventListener('click', startRiggedSpin);
     
     closeModalBtn.addEventListener('click', closeModal);
     winnerModal.addEventListener('click', (e) => {
@@ -154,15 +146,44 @@ function setupEventListeners() {
     });
 
     window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && document.activeElement !== optionInput) {
-            e.preventDefault();
-            startPhysicsSpin();
+        // Tasten-Auswertung (Nur wenn man nicht gerade ins Textfeld tippt)
+        if (document.activeElement !== optionInput) {
+            
+            // 🚨 CHEAT CODE LOGIK 🚨
+            if (e.key >= '1' && e.key <= '9') {
+                const targetIdx = parseInt(e.key) - 1;
+                if (targetIdx < options.length) {
+                    secretTargetIndex = targetIdx;
+                    
+                    // Geheimes visuelles Feedback (Subtiles Aufleuchten)
+                    canvas.style.transition = 'box-shadow 0.3s ease';
+                    canvas.style.boxShadow = `0 0 40px ${PALETTE[targetIdx % PALETTE.length].main}`;
+                    setTimeout(() => canvas.style.boxShadow = 'none', 500);
+                    
+                    console.log(`🤫 Pssst... Segment ${targetIdx + 1} (${options[targetIdx]}) ist fixiert.`);
+                }
+            }
+            
+            // Cheat zurücksetzen mit '0'
+            if (e.key === '0') {
+                secretTargetIndex = -1;
+                canvas.style.transition = 'box-shadow 0.3s ease';
+                canvas.style.boxShadow = `0 0 40px #ffffff`;
+                setTimeout(() => canvas.style.boxShadow = 'none', 500);
+                console.log(`😇 Wieder im fairen Modus.`);
+            }
+
+            // Normales Drehen mit Space
+            if (e.code === 'Space' && !isSpinning) {
+                e.preventDefault();
+                startRiggedSpin();
+            }
         }
+        
         if (e.code === 'Escape') closeModal();
     });
 }
 
-// --- 4. Listen-Management ---
 function renderList() {
     optionsList.innerHTML = '';
     itemCount.textContent = options.length;
@@ -172,8 +193,11 @@ function renderList() {
         li.className = 'option-item';
         
         const color = PALETTE[index % PALETTE.length].main;
+        // Hinweis: Eine kleine Zahl vor den Optionen hilft dir zu wissen, welche Taste du drücken musst!
         li.innerHTML = `
-            <div class="option-color-preview" style="background-color: ${color}; box-shadow: 0 0 10px ${color}80"></div>
+            <div class="option-color-preview" style="background-color: ${color}; box-shadow: 0 0 10px ${color}80">
+                <span style="font-size: 10px; color: white; opacity: 0.5;">${index + 1}</span>
+            </div>
             <span class="option-text">${option}</span>
             <button class="btn-delete" title="Löschen" onclick="deleteOption(${index})">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -191,12 +215,12 @@ function addOption() {
     if (text && !isSpinning) {
         options.push(text);
         optionInput.value = '';
-        winningSegmentIndex = -1; // Reset winning state
+        winningSegmentIndex = -1; 
         renderList();
         drawWheel();
         optionsList.scrollTo({ top: optionsList.scrollHeight, behavior: 'smooth' });
     } else {
-        optionInput.classList.add('shake-error'); // Benötigt CSS Animation
+        optionInput.classList.add('shake-error'); 
         setTimeout(() => optionInput.classList.remove('shake-error'), 400);
     }
     optionInput.focus();
@@ -206,6 +230,7 @@ window.deleteOption = function(index) {
     if (isSpinning) return;
     options.splice(index, 1);
     winningSegmentIndex = -1;
+    if (secretTargetIndex >= options.length) secretTargetIndex = -1; // Reset Cheat falls Element gelöscht
     renderList();
     drawWheel();
 };
@@ -215,6 +240,7 @@ function resetOptions() {
     if (confirm("🚨 ACHTUNG: Willst du wirklich das komplette Rad auslöschen?")) {
         options = [];
         winningSegmentIndex = -1;
+        secretTargetIndex = -1;
         renderList();
         drawWheel();
     }
@@ -222,12 +248,11 @@ function resetOptions() {
 
 function closeModal() {
     winnerModal.classList.remove('active');
-    winningSegmentIndex = -1; // Animation stoppen
-    drawWheel(); // Rad neu zeichnen ohne Highlight
+    winningSegmentIndex = -1; 
+    drawWheel(); 
     spinBtn.focus();
 }
 
-// --- 5. Extreme Rendering Engine (Neon, Gradients, Pulsing) ---
 function drawWheel(timestamp = 0) {
     const width = canvas.width;
     const height = canvas.height;
@@ -246,11 +271,10 @@ function drawWheel(timestamp = 0) {
         const endAngle = startAngle + sliceAngle;
         const isWinner = (i === winningSegmentIndex);
 
-        // Pulsier-Effekt für den Gewinner berechnen
         let highlightPulse = 0;
         if (isWinner) {
             pulseTime += 0.1;
-            highlightPulse = (Math.sin(pulseTime) + 1) / 2; // Werte zwischen 0 und 1
+            highlightPulse = (Math.sin(pulseTime) + 1) / 2;
         }
 
         ctx.beginPath();
@@ -258,12 +282,10 @@ function drawWheel(timestamp = 0) {
         ctx.arc(centerX, centerY, radius + (isWinner ? 10 * highlightPulse : 0), startAngle, endAngle);
         ctx.closePath();
 
-        // 3D Radial Gradient
         const colorSet = PALETTE[i % PALETTE.length];
         const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
         
         if (isWinner) {
-            // Extreme Winner Colors
             gradient.addColorStop(0, "#ffffff");
             gradient.addColorStop(0.5, colorSet.glow);
             gradient.addColorStop(1, colorSet.main);
@@ -271,19 +293,17 @@ function drawWheel(timestamp = 0) {
             ctx.shadowColor = colorSet.glow;
         } else {
             gradient.addColorStop(0, colorSet.main);
-            gradient.addColorStop(1, adjustColor(colorSet.main, -40)); // Darker edges
+            gradient.addColorStop(1, adjustColor(colorSet.main, -40)); 
             ctx.shadowBlur = 0;
         }
 
         ctx.fillStyle = gradient;
         ctx.fill();
         
-        // Neon Border
         ctx.lineWidth = isWinner ? 5 : 3;
         ctx.strokeStyle = isWinner ? "#fff" : "rgba(255,255,255,0.2)";
         ctx.stroke();
 
-        // Text Rendering (Scharf & mit Stroke)
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(startAngle + sliceAngle / 2);
@@ -296,7 +316,6 @@ function drawWheel(timestamp = 0) {
         
         let displayText = option.length > 15 ? option.substring(0, 14) + "..." : option;
         
-        // Schwarzer Rand um Text für perfekte Lesbarkeit auf jedem Hintergrund
         ctx.lineWidth = 4;
         ctx.strokeStyle = "rgba(0,0,0,0.8)";
         ctx.strokeText(displayText, radius - 40, 0);
@@ -310,7 +329,6 @@ function drawWheel(timestamp = 0) {
 
     drawHub(centerX, centerY);
 
-    // Wenn ein Gewinner feststeht, animiere weiter (Pulsieren)
     if (winningSegmentIndex !== -1 && !isSpinning) {
         requestAnimationFrame(drawWheel);
     }
@@ -333,7 +351,6 @@ function drawEmptyWheel(x, y, radius) {
 }
 
 function drawHub(x, y) {
-    // Äußerer dunkler Ring
     ctx.beginPath();
     ctx.arc(x, y, 45, 0, 2 * Math.PI);
     ctx.fillStyle = "#0f172a";
@@ -341,7 +358,6 @@ function drawHub(x, y) {
     ctx.shadowColor = "rgba(0,0,0,0.8)";
     ctx.fill();
 
-    // Innerer Silberner Ring
     const grad = ctx.createRadialGradient(x, y, 10, x, y, 35);
     grad.addColorStop(0, "#ffffff");
     grad.addColorStop(1, "#94a3b8");
@@ -355,45 +371,76 @@ function drawHub(x, y) {
     ctx.stroke();
 }
 
-// Hilfsfunktion: Farben abdunkeln/aufhellen
 function adjustColor(color, amount) {
     return '#' + color.replace(/^#/, '').replace(/../g, color => ('0'+Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
 }
 
-// --- 6. Physik-Engine (Das Herzstück des Extreme-Updates) ---
-function startPhysicsSpin() {
+// --- 6. 🚨 Die präzise Manipulations-Engine 🚨 ---
+function startRiggedSpin() {
     if (isSpinning || options.length === 0) return;
 
     sfx.init();
     isSpinning = true;
     spinBtn.disabled = true;
-    winningSegmentIndex = -1; // Reset Pulsing
+    winningSegmentIndex = -1;
     
-    // Extreme Initial-Geschwindigkeit (zufällig für Unvorhersehbarkeit)
-    currentVelocity = Math.random() * 0.1 + 0.5; // Rad/Frame
-    const friction = 0.992; // Luftwiderstand (nah an 1 = dreht extrem lange)
+    const startRotation = currentRotation;
+    let targetRotation = 0;
     
-    let lastTimestamp = null;
+    // Spannungsaufbau: Wir drehen zwischen 7 und 11 Mal
+    const extraSpins = (Math.floor(Math.random() * 5) + 7) * 2 * Math.PI;
+    const sliceAngle = (2 * Math.PI) / options.length;
 
-    function physicsLoop(timestamp) {
+    if (secretTargetIndex !== -1 && secretTargetIndex < options.length) {
+        // CHEAT AKTIV: Exakten Stopp-Punkt berechnen
+        // Mitte des gewünschten Segments
+        const targetSegmentCenter = secretTargetIndex * sliceAngle + (sliceAngle / 2);
+        
+        // Berechnen, wie weit wir drehen müssen, damit dieses Segment auf 270 Grad (1.5 PI / Oben) landet
+        let requiredMod = (1.5 * Math.PI - targetSegmentCenter) % (2 * Math.PI);
+        if (requiredMod < 0) requiredMod += 2 * Math.PI;
+        
+        // Damit es nicht verdächtig exakt mittig stoppt, fügen wir +/- 30% des Segments als Zufall hinzu
+        const randomJitter = (Math.random() * 0.6 - 0.3) * sliceAngle; 
+
+        targetRotation = startRotation + extraSpins + requiredMod + randomJitter - (startRotation % (2 * Math.PI));
+    } else {
+        // FAIRER MODUS: Einfach irgendwo anhalten
+        targetRotation = startRotation + extraSpins + (Math.random() * 2 * Math.PI);
+    }
+
+    const duration = 7500; // 7.5 Sekunden Drehung
+    let startTime = null;
+    let lastTimestamp = null;
+    let lastRotation = startRotation;
+
+    // Diese Kurve ahmt perfekte Reibung nach, lässt uns aber den Endpunkt exakt bestimmen
+    const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+
+    function spinLoop(timestamp) {
+        if (!startTime) startTime = timestamp;
         if (!lastTimestamp) lastTimestamp = timestamp;
+        
+        const elapsed = timestamp - startTime;
         const deltaTime = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
 
-        // Framerate-unabhängige Physik
+        const progress = Math.min(elapsed / duration, 1);
+        
+        currentRotation = startRotation + (targetRotation - startRotation) * easeOutQuart(progress);
+
+        // Wir simulieren Velocity (Geschwindigkeit) rein für die Audio-Engine & visuelle Kicks
         if (deltaTime > 0) {
-            currentRotation += currentVelocity * (deltaTime / 16.66);
-            currentVelocity *= Math.pow(friction, deltaTime / 16.66); 
+            currentVelocity = (currentRotation - lastRotation) / (deltaTime / 16.66);
         }
+        lastRotation = currentRotation;
 
         checkTickSound();
         drawWheel();
 
-        // Stopp-Bedingung: Wenn extrem langsam, schnappen wir ins Ziel
-        if (currentVelocity > 0.001) {
-            animationFrameId = requestAnimationFrame(physicsLoop);
+        if (progress < 1) {
+            animationFrameId = requestAnimationFrame(spinLoop);
         } else {
-            // FINISH
             currentVelocity = 0;
             isSpinning = false;
             spinBtn.disabled = false;
@@ -401,7 +448,7 @@ function startPhysicsSpin() {
         }
     }
 
-    animationFrameId = requestAnimationFrame(physicsLoop);
+    animationFrameId = requestAnimationFrame(spinLoop);
 }
 
 function checkTickSound() {
@@ -412,11 +459,9 @@ function checkTickSound() {
     const currentSegment = Math.floor(pointerAngle / sliceAngle);
 
     if (currentSegment !== lastTickSegment && lastTickSegment !== -1) {
-        // Berechne Audio-Pitch basierend auf der aktuellen Geschwindigkeit (0 bis 1 Range)
-        const speedFactor = Math.min(1, currentVelocity * 2);
+        const speedFactor = Math.min(1, currentVelocity * 1.5);
         sfx.playTick(speedFactor);
         
-        // Brutaler Zeiger-Kick
         if (pointerEl) {
             const intensity = Math.max(15, currentVelocity * 60);
             pointerEl.style.transform = `translateX(-50%) rotate(-${intensity}deg)`;
@@ -428,7 +473,6 @@ function checkTickSound() {
     lastTickSegment = currentSegment;
 }
 
-// --- 7. Extreme Auswertung & Multi-Confetti ---
 function evaluateWinner() {
     const sliceAngle = (2 * Math.PI) / options.length;
     let pointerAngle = (1.5 * Math.PI - (currentRotation % (2 * Math.PI))) % (2 * Math.PI);
@@ -437,9 +481,8 @@ function evaluateWinner() {
     winningSegmentIndex = Math.floor(pointerAngle / sliceAngle);
     const winner = options[winningSegmentIndex];
 
-    // Starte Pulsier-Loop
     pulseTime = 0;
-    drawWheel(); // Startet den RequestAnimationFrame Loop für das Blinken
+    drawWheel(); 
 
     sfx.playFanfare();
     winnerText.innerHTML = `🔥 <span style="color: ${PALETTE[winningSegmentIndex % PALETTE.length].glow}">${winner}</span> 🔥`;
@@ -452,10 +495,8 @@ function triggerExtremeConfetti() {
 
     const duration = 4000;
     const end = Date.now() + duration;
-    
     const colors = PALETTE.map(p => p.main);
 
-    // 1. Initialer Vulkan-Ausbruch
     confetti({
         particleCount: 200,
         spread: 120,
@@ -464,28 +505,12 @@ function triggerExtremeConfetti() {
         startVelocity: 60
     });
 
-    // 2. Epischer Dauerregen
     (function frame() {
-        confetti({
-            particleCount: 6,
-            angle: 60,
-            spread: 80,
-            origin: { x: 0, y: 0.8 },
-            colors: colors
-        });
-        confetti({
-            particleCount: 6,
-            angle: 120,
-            spread: 80,
-            origin: { x: 1, y: 0.8 },
-            colors: colors
-        });
+        confetti({ particleCount: 6, angle: 60, spread: 80, origin: { x: 0, y: 0.8 }, colors: colors });
+        confetti({ particleCount: 6, angle: 120, spread: 80, origin: { x: 1, y: 0.8 }, colors: colors });
 
-        if (Date.now() < end) {
-            requestAnimationFrame(frame);
-        }
+        if (Date.now() < end) requestAnimationFrame(frame);
     }());
 }
 
-// --- Go! ---
 window.addEventListener('DOMContentLoaded', init);
