@@ -1,6 +1,6 @@
 /**
- * PROFI GLÜCKSRAD
- * Features: Dynamisches Canvas-Rendering, Audio-Management, Fullscreen-API
+ * PROFI GLÜCKSRAD - ADVANCED EDITION
+ * Features: Dynamisches Canvas-Rendering, Audio-Management, Fullscreen-API, Dev-Console
  */
 
 class AudioManager {
@@ -8,6 +8,7 @@ class AudioManager {
         this.ctx = null;
         this.masterGain = null;
         this.isMuted = false;
+        this.volume = 0.8; // Standardlautstärke
     }
 
     init() {
@@ -29,9 +30,15 @@ class AudioManager {
         return this.isMuted;
     }
 
+    setVolume(val) {
+        this.volume = Math.max(0, Math.min(1, val));
+        this.updateVolume();
+        return this.volume;
+    }
+
     updateVolume() {
         if (this.masterGain) {
-            this.masterGain.gain.value = this.isMuted ? 0 : 0.8;
+            this.masterGain.gain.value = this.isMuted ? 0 : this.volume;
         }
     }
 
@@ -49,8 +56,8 @@ class AudioManager {
             osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + duration);
             
-            const volume = 0.2 + (speedFactor * 0.4);
-            gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+            const tickVolume = (0.2 + (speedFactor * 0.4));
+            gain.gain.setValueAtTime(tickVolume, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
             
             osc.connect(gain);
@@ -115,8 +122,11 @@ let lastTickSegment = -1;
 let activeIndex = -1; 
 let pulseTime = 0;
 
-// UI State Management (Harmloser Name für die Cheat-Logik)
-let _focusState = -1; 
+// Config State (inklusive "Undercover" Cheat-Variablen)
+const config = {
+    _focusState: -1, // Der manipulierte Gewinner (-1 = normaler Zufall)
+    spinDuration: 6000 // Dauer in ms
+};
 
 const canvas = document.getElementById('wheelCanvas');
 const ctx = canvas.getContext('2d');
@@ -131,7 +141,77 @@ const winnerText = document.getElementById('winnerText');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const pointerEl = document.querySelector('.pointer');
 
+// --- DEV CONSOLE INJECTION ---
+function buildDevConsole() {
+    const panel = document.createElement('div');
+    panel.id = 'devConsolePanel';
+    // Styling sieht aus wie ein legitimes Debug-Fenster
+    panel.style.cssText = `
+        position: fixed; top: 15px; left: 15px; background: rgba(15, 23, 42, 0.95);
+        color: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px;
+        z-index: 10000; display: none; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        backdrop-filter: blur(5px); width: 250px;
+    `;
+    
+    panel.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 10px; color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 5px;">
+            ⚙️ Render Engine Settings
+        </div>
+        
+        <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 4px;">Master Volume (<span id="volDisplay">80</span>%)</label>
+            <input type="range" id="devVol" min="0" max="100" value="80" style="width: 100%;">
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 4px;">Animation Duration (ms)</label>
+            <input type="number" id="devDur" value="6000" style="width: 100%; background: #1e293b; color: white; border: 1px solid #475569; padding: 4px; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 5px;">
+            <label style="display: block; margin-bottom: 4px;">Target Focus Index (-1 = Auto)</label>
+            <input type="number" id="devFocus" value="-1" min="-1" style="width: 100%; background: #1e293b; color: white; border: 1px solid #475569; padding: 4px; border-radius: 4px;">
+            <div id="devFocusName" style="color: #94a3b8; margin-top: 4px; font-style: italic;">Auto (Random)</div>
+        </div>
+    `;
+    
+    document.body.appendChild(panel);
+
+    // Event Listener für die versteckten Inputs
+    document.getElementById('devVol').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value) / 100;
+        audio.setVolume(val);
+        document.getElementById('volDisplay').innerText = Math.round(val * 100);
+    });
+
+    document.getElementById('devDur').addEventListener('input', (e) => {
+        config.spinDuration = Math.max(1000, parseInt(e.target.value) || 6000);
+    });
+
+    document.getElementById('devFocus').addEventListener('input', (e) => {
+        updateFocusState(parseInt(e.target.value));
+    });
+}
+
+function updateFocusState(index) {
+    if (isNaN(index)) index = -1;
+    config._focusState = index >= options.length ? -1 : index;
+    
+    const input = document.getElementById('devFocus');
+    const nameDisplay = document.getElementById('devFocusName');
+    
+    if (input && input.value != config._focusState) input.value = config._focusState;
+    
+    if (config._focusState === -1) {
+        if(nameDisplay) nameDisplay.innerText = "Auto (Random)";
+    } else {
+        if(nameDisplay) nameDisplay.innerText = `Target: ${options[config._focusState]}`;
+    }
+}
+// --- END DEV CONSOLE ---
+
 function init() {
+    buildDevConsole();
     loadOptions();
     renderList();
     resizeCanvas();
@@ -139,12 +219,10 @@ function init() {
 }
 
 function resizeCanvas() {
-    // Passt das Canvas dynamisch an, besonders wichtig im Vollbild
     if (document.fullscreenElement) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
     } else {
-        // Standardgröße, falls CSS es nicht regelt (ggf. an dein HTML anpassen)
         const container = canvas.parentElement;
         canvas.width = container ? container.clientWidth : 800;
         canvas.height = container ? container.clientHeight : 800;
@@ -159,13 +237,12 @@ function loadOptions() {
 
 function saveOptions() {
     localStorage.setItem('profi_wheel_data', JSON.stringify(options));
+    updateFocusState(config._focusState); // Aktualisiert den Text in der Dev-Console
 }
 
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
-        canvas.requestFullscreen().catch(err => {
-            console.warn(`Fullscreen-Fehler: ${err.message}`);
-        });
+        canvas.requestFullscreen().catch(() => {});
     } else {
         document.exitFullscreen();
     }
@@ -186,47 +263,78 @@ function setupEventListeners() {
     document.addEventListener('fullscreenchange', resizeCanvas);
 
     window.addEventListener('keydown', (e) => {
-        if (document.activeElement !== optionInput) {
-            
-            // UI State Overrides (Die versteckte Cheat-Logik)
-            if (e.key >= '1' && e.key <= '9') {
-                const targetIdx = parseInt(e.key) - 1;
-                if (targetIdx < options.length) {
-                    _focusState = targetIdx;
-                    // Subtiles Feedback
-                    canvas.style.opacity = '0.9';
-                    setTimeout(() => canvas.style.opacity = '1', 150);
-                }
-            }
-            
-            if (e.key === '0') {
-                _focusState = -1;
+        // Ignoriere Hotkeys, wenn wir in einem Textfeld tippen (außer ESC)
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && e.code !== 'Escape') {
+            return;
+        }
+        
+        // DEV CONSOLE TOGGLE (Taste 'K')
+        if (e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            const panel = document.getElementById('devConsolePanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Tasten-Cheats (1-9 und 0)
+        if (e.key >= '1' && e.key <= '9') {
+            const targetIdx = parseInt(e.key) - 1;
+            if (targetIdx < options.length) {
+                updateFocusState(targetIdx);
+                // Subtiles visuelles Feedback
                 canvas.style.opacity = '0.9';
                 setTimeout(() => canvas.style.opacity = '1', 150);
             }
+        }
+        
+        if (e.key === '0') {
+            updateFocusState(-1);
+            canvas.style.opacity = '0.9';
+            setTimeout(() => canvas.style.opacity = '1', 150);
+        }
 
-            // Vollbild-Kontrolle
-            if (e.key.toLowerCase() === 'f') {
-                e.preventDefault();
-                toggleFullscreen();
-            }
+        // LAUTSTÄRKE STEUERUNG (+ / - oder Pfeil hoch/runter)
+        if (e.key === '+' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const newVal = audio.setVolume(audio.volume + 0.1);
+            syncVolumeUI(newVal);
+        }
+        if (e.key === '-' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            const newVal = audio.setVolume(audio.volume - 0.1);
+            syncVolumeUI(newVal);
+        }
 
-            // Audio-Kontrolle
-            if (e.key.toLowerCase() === 'm') {
-                e.preventDefault();
-                const muted = audio.toggleMute();
-                // Optional: Kurzes visuelles Feedback für Mute
-                canvas.style.filter = muted ? 'grayscale(20%)' : 'none';
-            }
+        // VOLLBILD (F)
+        if (e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
 
-            if (e.code === 'Space' && !isSpinning) {
-                e.preventDefault();
-                startSpin();
-            }
+        // MUTE TOGGLE (M)
+        if (e.key.toLowerCase() === 'm') {
+            e.preventDefault();
+            const muted = audio.toggleMute();
+            canvas.style.filter = muted ? 'grayscale(20%)' : 'none';
+        }
+
+        // DREHEN (Leertaste)
+        if (e.code === 'Space' && !isSpinning) {
+            e.preventDefault();
+            startSpin();
         }
         
         if (e.code === 'Escape') closeModal();
     });
+}
+
+// Hilfsfunktion um den Slider im Panel zu aktualisieren, wenn per Taste geändert wird
+function syncVolumeUI(val) {
+    const slider = document.getElementById('devVol');
+    const display = document.getElementById('volDisplay');
+    if (slider && display) {
+        slider.value = Math.round(val * 100);
+        display.innerText = Math.round(val * 100);
+    }
 }
 
 function renderList() {
@@ -271,7 +379,7 @@ window.deleteOption = function(index) {
     if (isSpinning) return;
     options.splice(index, 1);
     activeIndex = -1;
-    if (_focusState >= options.length) _focusState = -1; 
+    if (config._focusState >= options.length) updateFocusState(-1); 
     renderList();
     drawWheel();
 };
@@ -281,7 +389,7 @@ function resetOptions() {
     if (confirm("Möchten Sie die Liste wirklich leeren?")) {
         options = [];
         activeIndex = -1;
-        _focusState = -1;
+        updateFocusState(-1);
         renderList();
         drawWheel();
     }
@@ -299,12 +407,10 @@ function drawWheel() {
     const height = canvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
-    // Im Vollbild passen wir den Radius dynamisch an
     const radius = Math.min(centerX, centerY) - (document.fullscreenElement ? 80 : 25);
 
     ctx.clearRect(0, 0, width, height);
 
-    // Hintergrund im Vollbild abdunkeln
     if (document.fullscreenElement) {
         ctx.fillStyle = "#0f172a";
         ctx.fillRect(0, 0, width, height);
@@ -403,8 +509,8 @@ function startSpin() {
     const extraSpins = (Math.floor(Math.random() * 4) + 6) * 2 * Math.PI;
     const sliceAngle = (2 * Math.PI) / options.length;
 
-    if (_focusState !== -1 && _focusState < options.length) {
-        const targetSegmentCenter = _focusState * sliceAngle + (sliceAngle / 2);
+    if (config._focusState !== -1 && config._focusState < options.length) {
+        const targetSegmentCenter = config._focusState * sliceAngle + (sliceAngle / 2);
         let requiredMod = (1.5 * Math.PI - targetSegmentCenter) % (2 * Math.PI);
         if (requiredMod < 0) requiredMod += 2 * Math.PI;
         const randomJitter = (Math.random() * 0.4 - 0.2) * sliceAngle; 
@@ -413,7 +519,6 @@ function startSpin() {
         targetRotation = startRotation + extraSpins + (Math.random() * 2 * Math.PI);
     }
 
-    const duration = 6000; 
     let startTime = null;
     let lastTimestamp = null;
     let lastRotation = startRotation;
@@ -428,7 +533,7 @@ function startSpin() {
         const deltaTime = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
 
-        const progress = Math.min(elapsed / duration, 1);
+        const progress = Math.min(elapsed / config.spinDuration, 1);
         
         currentRotation = startRotation + (targetRotation - startRotation) * easeOutCubic(progress);
 
@@ -488,9 +593,7 @@ function handleResult() {
 
     audio.playFanfare();
     
-    // Fallback falls im Vollbild das Modal nicht sichtbar ist
     if (document.fullscreenElement) {
-        // Zeigt den Gewinner kurz als Overlay direkt auf dem Canvas
         setTimeout(() => {
             alert(`🎉 Gewinner: ${winner}`);
             document.exitFullscreen();
