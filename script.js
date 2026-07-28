@@ -445,7 +445,12 @@ function closeModal() {
     winnerModal.classList.remove('active');
     activeIndex = -1;
     drawWheel();
-    spinBtn.focus();
+    
+    // BUGFIX: Wenn wir im Vollbild sind, darf "spinBtn" NICHT fokussiert werden, 
+    // da der Browser sonst das Vollbild automatisch beendet!
+    if (!document.fullscreenElement) {
+        spinBtn.focus();
+    }
 }
 
 // --- 9. CANVAS RENDERING ENGINE (ULTRA MULTI-LINE & AUTO-SQUISH) ---
@@ -734,7 +739,13 @@ function handleResult() {
 
     audio.playFanfare();
 
-    // Zeige immer das Modal & Konfetti an, egal ob Vollbild oder normal (ohne den Vollbildmodus zu verlassen)
+    // BUGFIX: Damit das Modal im Vollbild sichtbar bleibt, schieben wir es 
+    // dynamisch in das gerade aktive Vollbild-Element.
+    const targetParent = document.fullscreenElement || document.body;
+    if (winnerModal.parentElement !== targetParent) {
+        targetParent.appendChild(winnerModal);
+    }
+
     winnerText.innerHTML = winner;
     winnerModal.classList.add('active');
     triggerConfetti();
@@ -742,7 +753,33 @@ function handleResult() {
 
 function triggerConfetti() {
     if (typeof confetti !== 'function') return;
-    confetti({
+
+    // BUGFIX: Konfetti im Vollbild ermöglichen. Wir erzeugen einen unsichtbaren Canvas 
+    // der als Overlay genau im Vollbild-Fenster liegt.
+    const targetParent = document.fullscreenElement || document.body;
+    let confettiCanvas = document.getElementById('fs-confetti');
+    
+    if (!confettiCanvas) {
+        confettiCanvas = document.createElement('canvas');
+        confettiCanvas.id = 'fs-confetti';
+        confettiCanvas.style.position = 'fixed'; // Damit es den Bildschirm abdeckt
+        confettiCanvas.style.top = '0';
+        confettiCanvas.style.left = '0';
+        confettiCanvas.style.width = '100%';
+        confettiCanvas.style.height = '100%';
+        confettiCanvas.style.pointerEvents = 'none'; // Klicks gehen hindurch
+        confettiCanvas.style.zIndex = '99999';
+        targetParent.appendChild(confettiCanvas);
+    } else if (confettiCanvas.parentElement !== targetParent) {
+        targetParent.appendChild(confettiCanvas);
+    }
+
+    const customConfetti = confetti.create(confettiCanvas, {
+        resize: true,
+        useWorker: true
+    });
+
+    customConfetti({
         particleCount: 120,
         spread: 80,
         origin: { y: 0.6 },
