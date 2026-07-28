@@ -734,16 +734,10 @@ function handleResult() {
 
     audio.playFanfare();
 
-    if (document.fullscreenElement) {
-        setTimeout(() => {
-            alert(`🎉 Gewinner: ${winner}`);
-            document.exitFullscreen().catch(() => {});
-        }, 400);
-    } else {
-        winnerText.innerHTML = winner;
-        winnerModal.classList.add('active');
-        triggerConfetti();
-    }
+    // Zeige immer das Modal & Konfetti an, egal ob Vollbild oder normal (ohne den Vollbildmodus zu verlassen)
+    winnerText.innerHTML = winner;
+    winnerModal.classList.add('active');
+    triggerConfetti();
 }
 
 function triggerConfetti() {
