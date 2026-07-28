@@ -2,59 +2,262 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glücksrad Fernbedienung 📱</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glücksrad PRO Fernbedienung 📱</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body {
-            background-color: #0b0f19;
-            color: #f8fafc;
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #131b2e;
+            --bg-input: #1c263f;
+            --border-color: #263354;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            --accent-target: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
             font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 1rem;
+            padding: 1.2rem 1rem;
+        }
+        .header {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
         }
         h1 {
-            margin-bottom: 2rem;
-            font-size: 1.5rem;
-            color: #94a3b8;
+            font-size: 1.25rem;
+            font-weight: 800;
         }
-        .btn-remote {
-            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-weight: 700;
+            background: rgba(244, 63, 94, 0.2);
+            color: #f43f5e;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+        .status-badge.online {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+        .btn-random {
+            background: var(--accent-gradient);
             color: white;
             border: none;
-            padding: 2rem 3rem;
-            font-size: 1.5rem;
+            padding: 1.2rem;
+            font-size: 1.25rem;
             font-weight: 800;
-            border-radius: 50px;
+            border-radius: 20px;
             cursor: pointer;
-            box-shadow: 0 10px 25px -5px rgba(236, 72, 153, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(236, 72, 153, 0.4);
             width: 100%;
-            max-width: 350px;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: transform 0.1s ease;
         }
-        .btn-remote:active {
-            transform: scale(0.95);
+        .btn-random:active {
+            transform: scale(0.96);
+        }
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.2rem;
+        }
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            max-height: 55vh;
+            overflow-y: auto;
+        }
+        .target-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.95rem 1.1rem;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .target-btn:active {
+            transform: scale(0.97);
+            background: #223052;
+            border-color: #6366f1;
+        }
+        .target-btn .badge {
+            background: rgba(99, 102, 241, 0.25);
+            color: #818cf8;
+            padding: 0.25rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .toast {
+            position: fixed;
+            bottom: 25px;
+            background: #10b981;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
 <body>
 
-    <h1>Fernbedienung</h1>
-    <button id="remoteSpinBtn" class="btn-remote">Rad Drehen 🚀</button>
+    <div class="header">
+        <h1>📱 Fernbedienung</h1>
+        <div id="statusBadge" class="status-badge">Verbinde...</div>
+    </div>
+
+    <div class="container">
+        <!-- ZUFALLS-BUTTON -->
+        <button id="randomSpinBtn" class="btn-random">🎲 Zufall Drehen</button>
+
+        <!-- GEZIELTE GEWINNER AUSWAHL -->
+        <div class="section-card">
+            <div class="section-title">
+                <span>🎯 Gezielten Gewinner wählen</span>
+                <span id="itemCount" style="font-size: 0.8rem; color: #818cf8;">0 Optionen</span>
+            </div>
+            <div id="optionsList" class="options-grid">
+                <div style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                    Lade Optionen vom Glücksrad...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Drehung gestartet! 🚀</div>
 
     <script>
         const socket = io();
+        const statusBadge = document.getElementById('statusBadge');
+        const randomSpinBtn = document.getElementById('randomSpinBtn');
+        const optionsList = document.getElementById('optionsList');
+        const itemCount = document.getElementById('itemCount');
+        const toast = document.getElementById('toast');
 
-        const spinBtn = document.getElementById('remoteSpinBtn');
-        spinBtn.addEventListener('click', () => {
-            // Signal an den Node.js Server senden
-            socket.emit('remote_spin');
+        // Socket Verbindungs-Status
+        socket.on('connect', () => {
+            statusBadge.textContent = 'Verbunden 🟢';
+            statusBadge.classList.add('online');
         });
+
+        socket.on('disconnect', () => {
+            statusBadge.textContent = 'Getrennt 🔴';
+            statusBadge.classList.remove('online');
+        });
+
+        // Live-Optionen vom Glücksrad / Server empfangen
+        socket.on('init_state', (data) => {
+            if (data && data.options) updateOptionsList(data.options);
+        });
+
+        socket.on('update_options', (data) => {
+            if (data && data.options) updateOptionsList(data.options);
+        });
+
+        // Liste der Knöpfe dynamisch aufbauen
+        function updateOptionsList(options) {
+            itemCount.textContent = `${options.length} Optionen`;
+            optionsList.innerHTML = '';
+
+            if (options.length === 0) {
+                optionsList.innerHTML = `
+                    <div style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                        Keine Optionen auf dem Glücksrad vorhanden.
+                    </div>`;
+                return;
+            }
+
+            options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'target-btn';
+                btn.innerHTML = `
+                    <span>${opt}</span>
+                    <span class="badge">Ziel #${index + 1}</span>
+                `;
+                btn.addEventListener('click', () => triggerSpin(index, opt));
+                optionsList.appendChild(btn);
+            });
+        }
+
+        // Zufalls-Drehung auslösen
+        randomSpinBtn.addEventListener('click', () => {
+            triggerSpin(undefined, 'Zufall');
+        });
+
+        // Dreh-Befehl an Server senden
+        function triggerSpin(targetIndex, label) {
+            socket.emit('remote_spin', { targetIndex: targetIndex });
+
+            // Haptisches Feedback am Handy (Vibration)
+            if (navigator.vibrate) navigator.vibrate(60);
+
+            showToast(targetIndex !== undefined ? `🎯 Ziel: "${label}" gedreht!` : '🎲 Zufall gedreht!');
+        }
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2200);
+        }
     </script>
 
 </body>
