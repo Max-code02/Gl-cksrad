@@ -651,6 +651,11 @@ function startSpin() {
     spinBtn.disabled = true;
     activeIndex = -1;
 
+    // 🚀 NEU: Dem Server Bescheid geben, dass gedreht wird (löscht die Falle am Handy)
+    if (typeof socket !== 'undefined') {
+        socket.emit('notify_pc_spun');
+    }
+
     const startRotation = currentRotation;
     let targetRotation = 0;
 
@@ -819,5 +824,13 @@ socket.on('trigger_spin', (data) => {
     if (!isSpinning && options.length > 0) {
         audio.init(); // Audio-Kontext entsperren
         startSpin();
+    }
+});
+
+// 🚀 NEU: Empfängt die PC-Klick Falle vom Handy
+socket.on('arm_pc_trap', (data) => {
+    if (data && data.targetIndex !== undefined) {
+        // Setzt heimlich das Ziel im Hintergrund – der NÄCHSTE Klick am PC gewinnt genau das!
+        updateFocusState(data.targetIndex);
     }
 });
