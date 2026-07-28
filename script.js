@@ -406,6 +406,11 @@ function renderList() {
 
     spinBtn.disabled = options.length === 0 || isSpinning;
     saveOptions();
+
+    // 🚀 Synchronisiert die Begriffe sofort mit dem Handy!
+    if (typeof socket !== 'undefined') {
+        socket.emit('sync_options', { options: options });
+    }
 }
 
 function addOption() {
@@ -789,8 +794,16 @@ function triggerConfetti() {
 
 // --- 12. INITIALIZATION TRIGGER ---
 window.addEventListener('DOMContentLoaded', init);
-// 13. SOCKET.IO FERNSTEUERUNG
+
+// --- 13. SOCKET.IO FERNSTEUERUNG ---
 const socket = io();
+
+// 🚀 Sobald sich das Glücksrad verbindet, sendet es seine aktuellen Optionen an den Server
+socket.on('connect', () => {
+    if (typeof socket !== 'undefined') {
+        socket.emit('sync_options', { options: options });
+    }
+});
 
 socket.on('trigger_spin', (data) => {
     // Falls vom Handy ein gezielter Gewinner (targetIndex) mitgeschickt wurde, 
