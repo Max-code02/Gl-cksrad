@@ -34,6 +34,7 @@ app.get('/health', (req, res) => {
 let globalOptions = [];
 let lastSpinTime = 0;
 const SPIN_COOLDOWN_MS = 1200; // Mindestabstand zwischen Spins (verhindert Button-Spam)
+let forcedMainTarget = -1; // 🚀 NEU: Speichert das vorgegebene Ziel für den PC-Klick
 
 // 4. SOCKET.IO REAL-TIME LOGIK
 io.on('connection', (socket) => {
@@ -56,6 +57,23 @@ io.on('connection', (socket) => {
             globalOptions = data.options.slice(0, 100).map(opt => String(opt).trim().substring(0, 50));
             socket.broadcast.emit('update_options', { options: globalOptions });
         }
+    });
+
+    // 🚀 NEU: Handy schaltet Falle am PC scharf
+    socket.on('set_forced_main_target', (data) => {
+        if (data && typeof data.targetIndex === 'number') {
+            forcedMainTarget = data.targetIndex;
+            console.log(`[🎯] [${time()}] PC-Falle aktiviert! Nächster PC-Klick landet auf Index: ${forcedMainTarget}`);
+            // Haupt-Glücksrad am PC benachrichtigen
+            io.emit('arm_pc_trap', { targetIndex: forcedMainTarget });
+        }
+    });
+
+    // 🚀 NEU: Sobald am PC gedreht wird (Falle schnappt zu)
+    socket.on('notify_pc_spun', () => {
+        forcedMainTarget = -1; // Falle zurücksetzen
+        console.log(`[🔄] [${time()}] Glücksrad wurde am PC gedreht. Falle resettet.`);
+        io.emit('wheel_spun_on_pc'); // Handy-Status-Banner aktualisieren
     });
 
     // 🔥 ULTRA-ROBUSTER & SPAM-SICHERER SPIN-COMMAND
