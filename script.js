@@ -789,3 +789,22 @@ function triggerConfetti() {
 
 // --- 12. INITIALIZATION TRIGGER ---
 window.addEventListener('DOMContentLoaded', init);
+// 13. SOCKET.IO FERNSTEUERUNG
+const socket = io();
+
+socket.on('trigger_spin', (data) => {
+    // Falls vom Handy ein gezielter Gewinner (targetIndex) mitgeschickt wurde, 
+    // nutzen wir deine eingebaute Dev-Engine-Funktion, um das Ziel zu setzen.
+    if (data && data.targetIndex !== undefined) {
+        updateFocusState(data.targetIndex);
+    } else {
+        // Falls kein Ziel übergeben wurde, wieder auf Zufall stellen
+        updateFocusState(-1);
+    }
+    
+    // Rad nur drehen, wenn es still steht und Optionen vorhanden sind
+    if (!isSpinning && options.length > 0) {
+        audio.init(); // Audio-Kontext entsperren
+        startSpin();
+    }
+});
