@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glücksrad PRO Master-Control 📱</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #131b2e;
+            --bg-input: #1c263f;
+            --border-color: #263354;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            --accent-target: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            --accent-warning: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+            padding-bottom: 3rem;
+        }
+        .header {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 20px;
+            font-weight: 700;
+            background: rgba(244, 63, 94, 0.2);
+            color: #f43f5e;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+        .status-badge.online {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* BANNER FÜR NÄCHSTEN PC DREH */
+        .trap-status-card {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 16px;
+            padding: 0.8rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .trap-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .trap-label {
+            font-size: 0.75rem;
+            color: #fbbf24;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .trap-value {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #ffffff;
+        }
+        .btn-clear-trap {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            padding: 0.4rem 0.7rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* BUTTONS */
+        .btn-group-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .btn-action {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 1rem 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 800;
+            border-radius: 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px -5px rgba(236, 72, 153, 0.3);
+            text-align: center;
+            transition: transform 0.1s ease;
+        }
+        .btn-action.weighted {
+            background: var(--accent-target);
+            box-shadow: 0 8px 20px -5px rgba(16, 185, 129, 0.3);
+        }
+        .btn-action:active {
+            transform: scale(0.96);
+        }
+
+        /* SECTION CARDS */
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.1rem;
+        }
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--text-secondary);
+            margin-bottom: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* OPTIONS LIST & WEIGHT SLIDERS */
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 50vh;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        .option-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .option-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .option-title-text {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+        .chance-badge {
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+        }
+        .weight-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .weight-slider {
+            flex: 1;
+            accent-color: #6366f1;
+            height: 6px;
+            background: #0f172a;
+            border-radius: 3px;
+        }
+        .weight-num {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            min-width: 35px;
+            text-align: right;
+        }
+        .option-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.2rem;
+        }
+        .btn-sub-trigger {
+            background: #223052;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+        }
+        .btn-sub-trigger:active {
+            background: #334155;
+        }
+        .btn-sub-trigger.trap-btn {
+            border-color: rgba(245, 158, 11, 0.5);
+            color: #fbbf24;
+        }
+
+        /* PRESET BUTTONS */
+        .preset-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+        .btn-preset {
+            flex: 1;
+            background: #1c263f;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.4rem;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        /* TOAST */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(30px);
+            background: #10b981;
+            color: white;
+            padding: 0.7rem 1.4rem;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🕵️ Glücksrad PRO Control</h1>
+        <div id="statusBadge" class="status-badge">Verbinde...</div>
+    </div>
+
+    <div class="container">
+        
+        <!-- STATUS DER MAIN-WHEEL FALLES -->
+        <div class="trap-status-card">
+            <div class="trap-info">
+                <span class="trap-label">🎯 Nächster PC-Klick ist eingestellt auf:</span>
+                <span id="trapDisplay" class="trap-value">🎲 Echter Zufall</span>
+            </div>
+            <button id="clearTrapBtn" class="btn-clear-trap" style="display: none;">Reset</button>
+        </div>
+
+        <!-- SCHNELL-DREH BUTTONS -->
+        <div class="btn-group-main">
+            <button id="randomSpinBtn" class="btn-action">🎲 100% Zufall</button>
+            <button id="weightedSpinBtn" class="btn-action weighted">⚖️ Gewichtet Drehen</button>
+        </div>
+
+        <!-- MANIPULATIONS- UND CHANCEN-STEUERUNG -->
+        <div class="section-card">
+            <div class="section-title">
+                <span>⚙️ Optionen & Gewinnchancen</span>
+                <span id="itemCount" style="font-size: 0.8rem; color: #818cf8;">0 Optionen</span>
+            </div>
+
+            <div class="preset-bar">
+                <button class="btn-preset" onclick="setAllWeights(50)">Alle 50%</button>
+                <button class="btn-preset" onclick="lockFirstOption()">Ziel 1 = 0%</button>
+            </div>
+
+            <div id="optionsList" class="options-grid">
+                <div style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                    Lade Optionen vom Glücksrad...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="toast" class="toast">Befehl gesendet! 🚀</div>
+
+    <script>
+        const socket = io();
+        const statusBadge = document.getElementById('statusBadge');
+        const randomSpinBtn = document.getElementById('randomSpinBtn');
+        const weightedSpinBtn = document.getElementById('weightedSpinBtn');
+        const optionsList = document.getElementById('optionsList');
+        const itemCount = document.getElementById('itemCount');
+        const trapDisplay = document.getElementById('trapDisplay');
+        const clearTrapBtn = document.getElementById('clearTrapBtn');
+        const toast = document.getElementById('toast');
+
+        let currentOptions = [];
+        let optionWeights = []; // Speichert die versteckten Gewichte (0-100)
+        let forcedMainTarget = null; // Speichert das Manipulationsziel für den PC-Klick
+
+        // Socket Events
+        socket.on('connect', () => {
+            statusBadge.textContent = 'Verbunden 🟢';
+            statusBadge.classList.add('online');
+            socket.emit('request_sync');
+        });
+
+        socket.on('disconnect', () => {
+            statusBadge.textContent = 'Getrennt 🔴';
+            statusBadge.classList.remove('online');
+        });
+
+        socket.on('init_state', (data) => {
+            if (data && data.options) syncOptions(data.options);
+        });
+
+        socket.on('update_options', (data) => {
+            if (data && data.options) syncOptions(data.options);
+        });
+
+        // Empfange Signal wenn am PC gedreht wurde (um Falle zu leeren)
+        socket.on('wheel_spun_on_pc', () => {
+            clearMainTrap();
+        });
+
+        function syncOptions(options) {
+            currentOptions = options;
+            // Falls neue Optionen hinzukommen, Gewichte initialisieren (Standard 50)
+            while (optionWeights.length < currentOptions.length) {
+                optionWeights.push(50);
+            }
+            optionWeights = optionWeights.slice(0, currentOptions.length);
+            renderOptionsUI();
+        }
+
+        // Berechnet die echten Prozentchancen basierend auf allen Gewichten
+        function renderOptionsUI() {
+            itemCount.textContent = `${currentOptions.length} Optionen`;
+            optionsList.innerHTML = '';
+
+            if (currentOptions.length === 0) {
+                optionsList.innerHTML = `<div style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Keine Optionen geladen.</div>`;
+                return;
+            }
+
+            const totalWeight = optionWeights.reduce((a, b) => a + b, 0);
+
+            currentOptions.forEach((opt, index) => {
+                const weight = optionWeights[index];
+                const chance = totalWeight > 0 ? ((weight / totalWeight) * 100).toFixed(1) : 0;
+
+                const card = document.createElement('div');
+                card.className = 'option-card';
+                card.innerHTML = `
+                    <div class="option-header">
+                        <span class="option-title-text">#${index + 1} ${opt}</span>
+                        <span class="chance-badge">${chance}% Chance</span>
+                    </div>
+                    <div class="weight-controls">
+                        <input type="range" class="weight-slider" min="0" max="100" value="${weight}" oninput="updateWeight(${index}, this.value)">
+                        <span class="weight-num">${weight}w</span>
+                    </div>
+                    <div class="option-actions">
+                        <button class="btn-sub-trigger" onclick="triggerDirectSpin(${index}, '${opt}')">⚡ Sofort Drehen</button>
+                        <button class="btn-sub-trigger trap-btn" onclick="armMainTrap(${index}, '${opt}')">🎯 PC-Klick Falle</button>
+                    </div>
+                `;
+                optionsList.appendChild(card);
+            });
+        }
+
+        function updateWeight(index, val) {
+            optionWeights[index] = parseInt(val);
+            renderOptionsUI();
+        }
+
+        function setAllWeights(val) {
+            optionWeights = optionWeights.map(() => val);
+            renderOptionsUI();
+            showToast(`Alle Gewichte auf ${val} gesetzt`);
+        }
+
+        function lockFirstOption() {
+            if (optionWeights.length > 0) {
+                optionWeights[0] = 0;
+                renderOptionsUI();
+                showToast(`Ziel #1 auf 0% gesetzt!`);
+            }
+        }
+
+        // --- MANIPULATION 1: SOFORTIGE DREHUNG VO M HANDY ---
+        function triggerDirectSpin(targetIndex, label) {
+            socket.emit('remote_spin', { targetIndex: targetIndex });
+            vibrate();
+            showToast(`🚀 Drehe direkt auf: "${label}"`);
+        }
+
+        // --- MANIPULATION 2: GEWICHTETER ZUFALL (Handy berechnet Chance) ---
+        weightedSpinBtn.addEventListener('click', () => {
+            const totalWeight = optionWeights.reduce((a, b) => a + b, 0);
+            if (totalWeight === 0) {
+                showToast('❌ Alle Gewichte sind 0!');
+                return;
+            }
+
+            let random = Math.random() * totalWeight;
+            let selectedIndex = 0;
+
+            for (let i = 0; i < optionWeights.length; i++) {
+                if (random < optionWeights[i]) {
+                    selectedIndex = i;
+                    break;
+                }
+                random -= optionWeights[i];
+            }
+
+            triggerDirectSpin(selectedIndex, currentOptions[selectedIndex]);
+        });
+
+        // Normaler 100% Zufall
+        randomSpinBtn.addEventListener('click', () => {
+            socket.emit('remote_spin', { targetIndex: undefined });
+            vibrate();
+            showToast('🎲 Echten Zufall gedreht!');
+        });
+
+        // --- MANIPULATION 3: PC-KLICK FALLE SCHARFSCHALTEN ---
+        function armMainTrap(index, label) {
+            forcedMainTarget = index;
+            trapDisplay.textContent = `#${index + 1} "${label}"`;
+            trapDisplay.style.color = '#38bdf8';
+            clearTrapBtn.style.display = 'block';
+
+            // Sendet das erzwungene Ziel an das Hauptrad (PC)
+            socket.emit('set_forced_main_target', { targetIndex: index });
+
+            vibrate();
+            showToast(`🎯 PC-Klick präpariert auf: "${label}"`);
+        }
+
+        function clearMainTrap() {
+            forcedMainTarget = null;
+            trapDisplay.textContent = '🎲 Echter Zufall';
+            trapDisplay.style.color = '#ffffff';
+            clearTrapBtn.style.display = 'none';
+
+            socket.emit('set_forced_main_target', { targetIndex: -1 });
+        }
+
+        clearTrapBtn.addEventListener('click', () => {
+            clearMainTrap();
+            showToast('Falle entfernt!');
+        });
+
+        function vibrate() {
+            if (navigator.vibrate) navigator.vibrate(60);
+        }
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2200);
+        }
+    </script>
+</body>
+</html>
