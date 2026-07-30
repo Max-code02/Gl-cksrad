@@ -2,6 +2,7 @@
  * PROFI GLÜCKSRAD - ULTIMATE HYBRID EDITION
  * Features: High-DPI Canvas Engine, Dynamic Text Scaling, Web Audio Synthesizer,
  * Pointer Physics, Dev-Console & Hidden Hotkey Cheats.
+ * NEU: Drag & Drop Reordering, Inline-Editing & Drehzeit-Einstellung.
  */
 
 // --- 1. AUDIO MANAGEMENT SYSTEM ---
@@ -104,7 +105,7 @@ class AudioManager {
 
 const audio = new AudioManager();
 
-// --- 2. FARBPALETTE & DEFAULT VALUES ---
+// --- 2. FARBPALETTE & DEFAULT VALUES (AUS DEINEM BILD ÜBERNOMMEN) ---
 const PALETTE = [
     { main: "#6366F1", glow: "#818cf8" },
     { main: "#EC4899", glow: "#f472b6" },
@@ -118,9 +119,11 @@ const PALETTE = [
     { main: "#A855F7", glow: "#c084fc" }
 ];
 
+// Exakte Begriffe aus deinem Bild im Uhrzeigersinn
 const DEFAULT_OPTIONS = [
-    "Popcorn (klein)", "Popcorn (mittel)", "Popcorn (groß)",
-    "Nachos mit Käse", "Eistee 0.5L", "Gutschein 5€"
+    "Popcorn (groß)", "5 Punkte", "20 Punkte", "10 Punkte", 
+    "10 Punkte", "Popcorn (klein)", "10 Punkte", "Niete ;(", 
+    "20 Punkte", "30 Punkte", "5 Punkte", "10 Punkte", "Niete :("
 ];
 
 // --- 3. STATE MANAGEMENT ---
@@ -135,7 +138,7 @@ let pulseTime = 0;
 
 const config = {
     _focusState: -1, // -1 = Zufall, ansonsten gezielter Ziel-Index
-    spinDuration: 6000
+    spinDuration: 6000 // Standard: 6 Sekunden
 };
 
 // --- 4. DOM ELEMENTE ---
@@ -152,7 +155,7 @@ const winnerText = document.getElementById('winnerText');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const pointerEl = document.querySelector('.pointer');
 
-// --- 5. DEV-CONSOLE INJECTION ---
+// --- 5. DEV-CONSOLE & DREHZEIT EINSTELLUNG ---
 function buildDevConsole() {
     if (document.getElementById('devConsolePanel')) return;
 
@@ -177,8 +180,8 @@ function buildDevConsole() {
         </div>
 
         <div style="margin-bottom: 10px;">
-            <label style="display: block; margin-bottom: 4px;">Animation Duration (ms)</label>
-            <input type="number" id="devDur" value="6000" style="width: 100%; background: #1e293b; color: white; border: 1px solid #475569; padding: 4px; border-radius: 4px;">
+            <label style="display: block; margin-bottom: 4px;">Drehzeit (ms)</label>
+            <input type="number" id="devDur" value="6000" step="500" min="1000" style="width: 100%; background: #1e293b; color: white; border: 1px solid #475569; padding: 4px; border-radius: 4px;">
         </div>
 
         <div style="margin-bottom: 5px;">
@@ -198,11 +201,42 @@ function buildDevConsole() {
 
     document.getElementById('devDur').addEventListener('input', (e) => {
         config.spinDuration = Math.max(1000, parseInt(e.target.value) || 6000);
+        syncDurationUI(config.spinDuration);
     });
 
     document.getElementById('devFocus').addEventListener('input', (e) => {
         updateFocusState(parseInt(e.target.value));
     });
+}
+
+// Fügt ein Bedienelement für die Drehzeit direkt in das Kontrollpanel der UI ein (falls gewünscht)
+function addDurationControlToUI() {
+    const controlsContainer = document.querySelector('.controls') || addForm;
+    if (controlsContainer && !document.getElementById('uiSpinDuration')) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = `margin-top: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 14px;`;
+        wrapper.innerHTML = `
+            <label for="uiSpinDuration" style="font-weight: 500;">Drehzeit (Sekunden):</label>
+            <input type="number" id="uiSpinDuration" value="6" min="1" max="30" step="0.5" style="width: 80px; padding: 4px; border-radius: 4px; border: 1px solid #475569; background: #1e293b; color: white; text-align: center;">
+        `;
+        controlsContainer.appendChild(wrapper);
+
+        document.getElementById('uiSpinDuration').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val > 0) {
+                config.spinDuration = val * 1000;
+                const devDurInput = document.getElementById('devDur');
+                if (devDurInput) devDurInput.value = config.spinDuration;
+            }
+        });
+    }
+}
+
+function syncDurationUI(ms) {
+    const uiInput = document.getElementById('uiSpinDuration');
+    const devInput = document.getElementById('devDur');
+    if (uiInput) uiInput.value = ms / 1000;
+    if (devInput) devInput.value = ms;
 }
 
 function updateFocusState(index) {
@@ -234,6 +268,7 @@ function init() {
     renderList();
     resizeCanvas();
     setupEventListeners();
+    addDurationControlToUI();
 }
 
 function resizeCanvas() {
@@ -379,7 +414,7 @@ function syncVolumeUI(val) {
     }
 }
 
-// --- 8. LIST & OPTION MANAGEMENT ---
+// --- 8. LIST & OPTION MANAGEMENT (DRAG & DROP & EDIT) ---
 function renderList() {
     optionsList.innerHTML = '';
     itemCount.textContent = options.length;
@@ -387,31 +422,109 @@ function renderList() {
     options.forEach((option, index) => {
         const li = document.createElement('li');
         li.className = 'option-item';
+        li.draggable = !isSpinning;
+
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.cursor = isSpinning ? 'default' : 'grab';
+        li.style.marginBottom = '6px';
+        li.style.transition = 'border 0.2s';
 
         const color = PALETTE[index % PALETTE.length].main;
+        
         li.innerHTML = `
-            <div class="option-color-preview" style="background-color: ${color};">
-                <span style="font-size: 10px; color: white; opacity: 0.5;">${index + 1}</span>
+            <div title="Halten zum Verschieben" style="margin-right: 8px; color: #64748b; display: flex; align-items: center; cursor: grab;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
             </div>
-            <span class="option-text" title="${option}">${option}</span>
-            <button class="btn-delete" title="Löschen" onclick="deleteOption(${index})">
+            <div class="option-color-preview" style="background-color: ${color}; min-width: 24px; min-height: 24px; display: flex; justify-content: center; align-items: center; border-radius: 50%; margin-right: 10px;">
+                <span style="font-size: 10px; color: white; opacity: 0.8;">${index + 1}</span>
+            </div>
+            <input type="text" value="${option}" 
+                   onchange="editOption(${index}, this.value)"
+                   onfocus="this.style.borderBottom='1px solid #38bdf8'"
+                   onblur="this.style.borderBottom='1px solid transparent'"
+                   title="Klicken zum Bearbeiten"
+                   style="flex-grow: 1; background: transparent; border: none; border-bottom: 1px solid transparent; color: inherit; font-size: inherit; outline: none; padding: 2px 0;"
+                   ${isSpinning ? 'disabled' : ''} />
+            <button class="btn-delete" title="Löschen" onclick="deleteOption(${index})" style="margin-left: 10px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
         `;
+
+        li.addEventListener('dragstart', (e) => {
+            if (isSpinning) return e.preventDefault();
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', index);
+            setTimeout(() => li.style.opacity = '0.4', 0);
+        });
+
+        li.addEventListener('dragend', () => {
+            li.style.opacity = '1';
+            renderList();
+        });
+
+        li.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            li.style.borderTop = '2px solid #38bdf8';
+            li.style.paddingTop = '4px';
+        });
+
+        li.addEventListener('dragleave', () => {
+            li.style.borderTop = '';
+            li.style.paddingTop = '';
+        });
+
+        li.addEventListener('drop', (e) => {
+            e.preventDefault();
+            li.style.borderTop = '';
+            li.style.paddingTop = '';
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            const toIndex = index;
+
+            if (fromIndex !== toIndex && !isNaN(fromIndex)) {
+                const movedItem = options.splice(fromIndex, 1)[0];
+                options.splice(toIndex, 0, movedItem);
+                
+                activeIndex = -1;
+                if (config._focusState !== -1) updateFocusState(-1);
+                
+                renderList();
+                drawWheel();
+            }
+        });
+
         optionsList.appendChild(li);
     });
 
     spinBtn.disabled = options.length === 0 || isSpinning;
     saveOptions();
 
-    // 🚀 Synchronisiert die Begriffe sofort mit dem Handy!
     if (typeof socket !== 'undefined') {
         socket.emit('sync_options', { options: options });
     }
 }
+
+window.editOption = function(index, newText) {
+    if (isSpinning) return;
+    const text = newText.trim();
+    if (text) {
+        options[index] = text;
+        saveOptions();
+        drawWheel();
+        if (typeof socket !== 'undefined') {
+            socket.emit('sync_options', { options: options });
+        }
+    } else {
+        renderList();
+    }
+};
 
 function addOption() {
     const text = optionInput.value.trim();
@@ -437,8 +550,8 @@ window.deleteOption = function(index) {
 
 function resetOptions() {
     if (isSpinning) return;
-    if (confirm("Möchtest du wirklich alle Optionen löschen?")) {
-        options = [];
+    if (confirm("Möchtest du wirklich die Standard-Optionen aus dem Bild laden?")) {
+        options = [...DEFAULT_OPTIONS];
         activeIndex = -1;
         updateFocusState(-1);
         renderList();
@@ -451,14 +564,12 @@ function closeModal() {
     activeIndex = -1;
     drawWheel();
     
-    // BUGFIX: Wenn wir im Vollbild sind, darf "spinBtn" NICHT fokussiert werden, 
-    // da der Browser sonst das Vollbild automatisch beendet!
     if (!document.fullscreenElement) {
         spinBtn.focus();
     }
 }
 
-// --- 9. CANVAS RENDERING ENGINE (ULTRA MULTI-LINE & AUTO-SQUISH) ---
+// --- 9. CANVAS RENDERING ENGINE ---
 function drawWheel() {
     const width = canvas.width / (window.devicePixelRatio || 1);
     const height = canvas.height / (window.devicePixelRatio || 1);
@@ -466,7 +577,7 @@ function drawWheel() {
     const centerY = height / 2;
 
     const radius = Math.min(centerX, centerY) - (document.fullscreenElement ? 80 : 30);
-    const hubRadius = Math.max(35, Math.min(60, radius * 0.18)); // Dynamische Nabe
+    const hubRadius = Math.max(35, Math.min(60, radius * 0.18));
 
     ctx.clearRect(0, 0, width, height);
 
@@ -492,7 +603,6 @@ function drawWheel() {
             highlightPulse = (Math.sin(pulseTime) + 1) / 2;
         }
 
-        // Segment zeichnen
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius + (isActive ? 12 * highlightPulse : 0), startAngle, endAngle);
@@ -506,7 +616,6 @@ function drawWheel() {
         ctx.strokeStyle = "#0f172a";
         ctx.stroke();
 
-        // Text im Segment zeichnen (Ultra-Engine)
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(startAngle + sliceAngle / 2);
@@ -516,14 +625,12 @@ function drawWheel() {
         ctx.restore();
     });
 
-    // Äußerer Zierring
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.lineWidth = 8;
     ctx.strokeStyle = "#1e293b";
     ctx.stroke();
 
-    // Nabe (Mittelkreis)
     drawHub(centerX, centerY, hubRadius);
 
     if (activeIndex !== -1 && !isSpinning) {
@@ -536,11 +643,9 @@ function drawUltraFittedText(ctx, text, radius, hubRadius, sliceAngle) {
     const innerMargin = hubRadius + 12;
     const availableLength = radius - outerMargin - innerMargin;
 
-    // Maximale Winkelbreite des Segments am mittleren Radius
     const midRadius = (radius + hubRadius) / 2;
     const maxArcWidth = Math.max(16, 2 * midRadius * Math.sin(sliceAngle / 2) * 0.82);
 
-    // 1. Wort-Wrapping & Zeilenberechnung
     const words = text.trim().split(/\s+/);
     let lines = [];
     
@@ -560,14 +665,12 @@ function drawUltraFittedText(ctx, text, radius, hubRadius, sliceAngle) {
     }
     if (currentLine) lines.push(currentLine);
 
-    // Auf max. 3 Zeilen beschränken
     if (lines.length > 3) {
         const topLines = lines.slice(0, 2);
         topLines.push(lines.slice(2).join(" "));
         lines = topLines;
     }
 
-    // 2. Schriftgröße an Winkelbreite & Zeilenanzahl anpassen
     const lineHeight = fontSize * 1.1;
     const totalHeight = lines.length * lineHeight;
 
@@ -581,7 +684,6 @@ function drawUltraFittedText(ctx, text, radius, hubRadius, sliceAngle) {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffffff";
 
-    // 3. Zeichnen mit Stauchungs-Garantie (kein '...' Cutoff!)
     const startX = radius - outerMargin;
 
     lines.forEach((line, index) => {
@@ -651,7 +753,6 @@ function startSpin() {
     spinBtn.disabled = true;
     activeIndex = -1;
 
-    // 🚀 NEU: Dem Server Bescheid geben, dass gedreht wird (löscht die Falle am Handy)
     if (typeof socket !== 'undefined') {
         socket.emit('notify_pc_spun');
     }
@@ -662,7 +763,6 @@ function startSpin() {
     const extraSpins = (Math.floor(Math.random() * 4) + 6) * 2 * Math.PI;
     const sliceAngle = (2 * Math.PI) / options.length;
 
-    // Manipulierter Gewinner (Cheat Check)
     if (config._focusState !== -1 && config._focusState < options.length) {
         const targetSegmentCenter = config._focusState * sliceAngle + (sliceAngle / 2);
         let requiredMod = (1.5 * Math.PI - targetSegmentCenter) % (2 * Math.PI);
@@ -749,8 +849,6 @@ function handleResult() {
 
     audio.playFanfare();
 
-    // BUGFIX: Damit das Modal im Vollbild sichtbar bleibt, schieben wir es 
-    // dynamisch in das gerade aktive Vollbild-Element.
     const targetParent = document.fullscreenElement || document.body;
     if (winnerModal.parentElement !== targetParent) {
         targetParent.appendChild(winnerModal);
@@ -764,20 +862,18 @@ function handleResult() {
 function triggerConfetti() {
     if (typeof confetti !== 'function') return;
 
-    // BUGFIX: Konfetti im Vollbild ermöglichen. Wir erzeugen einen unsichtbaren Canvas 
-    // der als Overlay genau im Vollbild-Fenster liegt.
     const targetParent = document.fullscreenElement || document.body;
     let confettiCanvas = document.getElementById('fs-confetti');
     
     if (!confettiCanvas) {
         confettiCanvas = document.createElement('canvas');
         confettiCanvas.id = 'fs-confetti';
-        confettiCanvas.style.position = 'fixed'; // Damit es den Bildschirm abdeckt
+        confettiCanvas.style.position = 'fixed';
         confettiCanvas.style.top = '0';
         confettiCanvas.style.left = '0';
         confettiCanvas.style.width = '100%';
         confettiCanvas.style.height = '100%';
-        confettiCanvas.style.pointerEvents = 'none'; // Klicks gehen hindurch
+        confettiCanvas.style.pointerEvents = 'none';
         confettiCanvas.style.zIndex = '99999';
         targetParent.appendChild(confettiCanvas);
     } else if (confettiCanvas.parentElement !== targetParent) {
@@ -801,36 +897,29 @@ function triggerConfetti() {
 window.addEventListener('DOMContentLoaded', init);
 
 // --- 13. SOCKET.IO FERNSTEUERUNG ---
-const socket = io();
+const socket = (typeof io !== 'undefined') ? io() : null;
 
-// 🚀 Sobald sich das Glücksrad verbindet, sendet es seine aktuellen Optionen an den Server
-socket.on('connect', () => {
-    if (typeof socket !== 'undefined') {
+if (socket) {
+    socket.on('connect', () => {
         socket.emit('sync_options', { options: options });
-    }
-});
+    });
 
-socket.on('trigger_spin', (data) => {
-    // Falls vom Handy ein gezielter Gewinner (targetIndex) mitgeschickt wurde, 
-    // nutzen wir deine eingebaute Dev-Engine-Funktion, um das Ziel zu setzen.
-    if (data && data.targetIndex !== undefined) {
-        updateFocusState(data.targetIndex);
-    } else {
-        // Falls kein Ziel übergeben wurde, wieder auf Zufall stellen
-        updateFocusState(-1);
-    }
-    
-    // Rad nur drehen, wenn es still steht und Optionen vorhanden sind
-    if (!isSpinning && options.length > 0) {
-        audio.init(); // Audio-Kontext entsperren
-        startSpin();
-    }
-});
+    socket.on('trigger_spin', (data) => {
+        if (data && data.targetIndex !== undefined) {
+            updateFocusState(data.targetIndex);
+        } else {
+            updateFocusState(-1);
+        }
+        
+        if (!isSpinning && options.length > 0) {
+            audio.init();
+            startSpin();
+        }
+    });
 
-// 🚀 NEU: Empfängt die PC-Klick Falle vom Handy
-socket.on('arm_pc_trap', (data) => {
-    if (data && data.targetIndex !== undefined) {
-        // Setzt heimlich das Ziel im Hintergrund – der NÄCHSTE Klick am PC gewinnt genau das!
-        updateFocusState(data.targetIndex);
-    }
-});
+    socket.on('arm_pc_trap', (data) => {
+        if (data && data.targetIndex !== undefined) {
+            updateFocusState(data.targetIndex);
+        }
+    });
+}
