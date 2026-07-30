@@ -119,11 +119,24 @@ const PALETTE = [
     { main: "#A855F7", glow: "#c084fc" }
 ];
 
-// Exakte Begriffe aus deinem Bild im Uhrzeigersinn
+// Exakte 16 Begriffe aus image_cc3c90.png im Uhrzeigersinn
 const DEFAULT_OPTIONS = [
-    "Popcorn (groß)", "5 Punkte", "20 Punkte", "10 Punkte", 
-    "10 Punkte", "Popcorn (klein)", "10 Punkte", "Niete ;(", 
-    "20 Punkte", "30 Punkte", "5 Punkte", "10 Punkte", "Niete :("
+    "10 Punkte",
+    "Popcorn (groß)",
+    "5 Punkte",
+    "20 Punkte",
+    "5 Punkte",
+    "10 Punkte",
+    "Popcorn (klein)",
+    "10 Punkte",
+    "Niete :(",
+    "20 Punkte",
+    "30 Punkte",
+    "5 Punkte",
+    "10 Punkte",
+    "Niete :(",
+    "20 Punkte",
+    "5 Punkte"
 ];
 
 // --- 3. STATE MANAGEMENT ---
@@ -209,7 +222,6 @@ function buildDevConsole() {
     });
 }
 
-// Fügt ein Bedienelement für die Drehzeit direkt in das Kontrollpanel der UI ein (falls gewünscht)
 function addDurationControlToUI() {
     const controlsContainer = document.querySelector('.controls') || addForm;
     if (controlsContainer && !document.getElementById('uiSpinDuration')) {
