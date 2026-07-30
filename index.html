@@ -12,6 +12,9 @@
     
     <!-- Canvas Confetti CDN -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    
+    <!-- SortableJS für Drag & Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
     <style>
         :root {
@@ -212,7 +215,28 @@
 
         .option-item:hover {
             border-color: rgba(255, 255, 255, 0.15);
-            transform: translateX(4px);
+        }
+
+        /* NEU: Drag Handle CSS */
+        .drag-handle {
+            cursor: grab;
+            color: var(--text-secondary);
+            margin-right: 12px;
+            font-size: 1.2rem;
+            user-select: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .option-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            overflow: hidden;
         }
 
         .option-color-preview {
@@ -232,6 +256,13 @@
             text-overflow: ellipsis;
         }
 
+        /* NEU: Container für Aktionen (Edit + Delete) */
+        .option-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .btn-edit,
         .btn-delete {
             background: transparent;
             border: none;
@@ -243,6 +274,11 @@
             align-items: center;
             justify-content: center;
             transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .btn-edit:hover {
+            color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.1);
         }
 
         .btn-delete:hover {
@@ -432,7 +468,7 @@
             <!-- Linke Seite: Steuerung -->
             <section class="card">
                 <div class="controls-header">
-                    <h2>Optionen (<span id="itemCount">0</span>)</h2>
+                    <h2>Optionen (<span id="itemCount">16</span>)</h2>
                     <button id="resetBtn" class="btn-reset" title="Alle löschen">Zurücksetzen</button>
                 </div>
 
@@ -441,8 +477,185 @@
                     <button type="submit" id="addBtn" class="btn-add" title="Hinzufügen">+</button>
                 </form>
 
+                <!-- Die Liste wurde mit den Begriffen aus dem Bild vorbefüllt -->
                 <ul id="optionsList" class="options-list">
-                    <!-- Wird dynamisch per JS gefüllt -->
+                    <!-- Vorlage für ein List-Item mit Drag-Handle und Edit-Button -->
+                    <li class="option-item" data-id="1">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #2e3192;"></div>
+                            <span class="option-text">10 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="2">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #009444;"></div>
+                            <span class="option-text">Niete :(</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="3">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #f15a24;"></div>
+                            <span class="option-text">20 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="4">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #ed1c24;"></div>
+                            <span class="option-text">10 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="5">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #00aeef;"></div>
+                            <span class="option-text">10 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="6">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #fcee21;"></div>
+                            <span class="option-text">Popcorn (groß)</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="7">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #009444;"></div>
+                            <span class="option-text">5 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="8">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #ed1c24;"></div>
+                            <span class="option-text">20 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="9">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #ffffff;"></div>
+                            <span class="option-text" style="color: #000;">5 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="10">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #2e3192;"></div>
+                            <span class="option-text">10 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="11">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #f15a24;"></div>
+                            <span class="option-text">Popcorn (klein)</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="12">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #009444;"></div>
+                            <span class="option-text">10 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="13">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #f15a24;"></div>
+                            <span class="option-text">Niete :(</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="14">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #ed1c24;"></div>
+                            <span class="option-text">20 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="15">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #ffffff;"></div>
+                            <span class="option-text" style="color: #000;">30 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
+                    <li class="option-item" data-id="16">
+                        <span class="drag-handle" title="Verschieben">⋮⋮</span>
+                        <div class="option-content">
+                            <div class="option-color-preview" style="background-color: #fcee21;"></div>
+                            <span class="option-text">5 Punkte</span>
+                        </div>
+                        <div class="option-actions">
+                            <button class="btn-edit" title="Bearbeiten">✏️</button>
+                            <button class="btn-delete" title="Löschen">🗑️</button>
+                        </div>
+                    </li>
                 </ul>
             </section>
 
@@ -467,6 +680,24 @@
 
     <!-- HIER DIE SOCKET.IO BIBLIOTHEK EINFÜGEN -->
     <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Init-Skript für Drag & Drop (SortableJS) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var el = document.getElementById('optionsList');
+            if(el) {
+                var sortable = Sortable.create(el, {
+                    handle: '.drag-handle', // Macht nur das Icon ziehbar
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function (evt) {
+                        // Hier später im script.js das Array aktualisieren
+                        console.log("Element verschoben von", evt.oldIndex, "nach", evt.newIndex);
+                    }
+                });
+            }
+        });
+    </script>
 
     <script src="script.js"></script>
 </body>
