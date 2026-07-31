@@ -2,7 +2,7 @@
  * PROFI GLÜCKSRAD - ULTIMATE HYBRID EDITION
  * Features: High-DPI Canvas Engine, Dynamic Text Scaling, Web Audio Synthesizer,
  * Pointer Physics, Dev-Console & Hidden Hotkey Cheats.
- * NEU: Drag & Drop Reordering, Inline-Editing & Drehzeit-Einstellung.
+ * NEU: Drag & Drop Reordering, Inline-Editing, Drehzeit-Einstellung & Multi-Room.
  */
 
 // --- 1. AUDIO MANAGEMENT SYSTEM ---
@@ -908,11 +908,34 @@ function triggerConfetti() {
 // --- 12. INITIALIZATION TRIGGER ---
 window.addEventListener('DOMContentLoaded', init);
 
-// --- 13. SOCKET.IO FERNSTEUERUNG ---
+// --- 13. SOCKET.IO FERNSTEUERUNG & RAUM-MANAGEMENT ---
+
+// 1. Zuerst prüfen, ob schon ein Raum gespeichert wurde
+let roomName = localStorage.getItem('profi_wheel_room');
+
+// 2. Falls nicht, per Pop-up nach einem frei wählbaren Namen fragen
+if (!roomName) {
+    let input = prompt("Bitte gib einen Raum-Namen ein:");
+    
+    // Prüfen, ob der User etwas eingegeben hat
+    if (input && input.trim() !== "") {
+        roomName = input.trim().toLowerCase();
+        localStorage.setItem('profi_wheel_room', roomName); // Speichern für das nächste Mal
+    } else {
+        // Fallback-Raum, falls der User auf "Abbrechen" klickt oder nichts eingibt
+        roomName = "standard-raum";
+    }
+}
+
+// 3. Socket-Verbindung herstellen und direkt dem Raum beitreten
 const socket = (typeof io !== 'undefined') ? io() : null;
 
 if (socket) {
     socket.on('connect', () => {
+        // Dem spezifischen Raum beitreten
+        socket.emit('join_room', { roomName: roomName, pin: null });
+        
+        // Anschließend Optionen für diesen Raum synchronisieren
         socket.emit('sync_options', { options: options });
     });
 
