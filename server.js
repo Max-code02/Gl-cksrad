@@ -27,76 +27,140 @@ app.get('/remote', (req, res) => {
 
 // Health-Check Endpunkt (Perfekt für Uptime-Monitore oder Render Keep-Alive)
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'online', uptime: process.uptime(), clients: io.engine.clientsCount });
+    res.status(200).json({ 
+        status: 'online', 
+        uptime: process.uptime(), 
+        clients: io.engine.clientsCount,
+        activeRooms: Object.keys(rooms).length 
+    });
 });
 
-// 3. ZENTRALER SPEICHER & ANTI-SPAM PROTECTION
-let globalOptions = [];
-let lastSpinTime = 0;
-const SPIN_COOLDOWN_MS = 1200; // Mindestabstand zwischen Spins (verhindert Button-Spam)
-let forcedMainTarget = -1; // 🚀 NEU: Speichert das vorgegebene Ziel für den PC-Klick
+// 3. ZENTRALER RAUM-SPEICHER & CONFIG
+const MASTER_PIN = process.env.MASTER_PIN || "9999"; // Geheimer Universalschlüssel fürs Handy
+const SPIN_COOLDOWN_MS = 1200; // Mindestabstand zwischen Spins per Raum
 
-// 4. SOCKET.IO REAL-TIME LOGIK
+// Datenstruktur pro Raum: { "8a": { options: [], forcedMainTarget: -1, lastSpinTime: 0 } }
+const rooms = {};
+
+// Hilfsfunktion zum Erstellen / Abrufen eines Raumes
+function getOrCreateRoom(roomName) {
+    const cleanName = String(roomName).toLowerCase().trim();
+    if (!rooms[cleanName]) {
+        rooms[cleanName] = {
+            options: [],
+            forcedMainTarget: -1,
+            lastSpinTime: 0
+        };
+    }
+    return cleanName;
+}
+
+// 4. SOCKET.IO REAL-TIME LOGIK (MULTI-ROOM SUPPORT)
 io.on('connection', (socket) => {
     const time = () => new Date().toLocaleTimeString('de-DE');
     console.log(`[+] [${time()}] Gerät verbunden: ${socket.id}`);
 
-    // Schicke initialen Zustand und verbundene Geräte-Anzahl
-    socket.emit('init_state', { 
-        options: globalOptions, 
-        clientsCount: io.engine.clientsCount 
+    let currentRoom = null;
+
+    // 🔑 RAUM BEITRETEN ODER MASTER-PIN PRÜFEN
+    socket.on('join_room', (data = {}) => {
+        const inputStr = typeof data === 'string' ? data : (data.roomName || data.pin || '');
+        const cleanInput = String(inputStr).trim();
+
+        // 1. MASTER-PIN CHECK (Universalschlüssel)
+        if (cleanInput === MASTER_PIN || (data.pin && String(data.pin).trim() === MASTER_PIN)) {
+            const activeRooms = Object.keys(rooms);
+            console.log(`[👑] [${time()}] Master-PIN eingegeben von ${socket.id}. Aktive Räume: [${activeRooms.join(', ')}]`);
+            socket.emit('master_room_list', activeRooms);
+            return;
+        }
+
+        // 2. NORMALER RAUM-BEITRITT
+        if (!cleanInput) return;
+
+        const roomName = getOrCreateRoom(cleanInput);
+
+        // Falls das Gerät vorher in einem anderen Raum war, alten Raum verlassen
+        if (currentRoom) {
+            socket.leave(currentRoom);
+        }
+
+        currentRoom = roomName;
+        socket.join(currentRoom);
+
+        const roomData = rooms[currentRoom];
+        const roomClientsCount = io.sockets.adapter.rooms.get(currentRoom)?.size || 1;
+
+        console.log(`[🏫] [${time()}] Gerät ${socket.id} ist Raum '${currentRoom}' beigetreten.`);
+
+        // Initialen Zustand speziell für diesen Raum senden
+        socket.emit('init_state', { 
+            room: currentRoom,
+            options: roomData.options, 
+            clientsCount: roomClientsCount 
+        });
+
+        // Alle Geräte im selben Raum über Client-Anzahl informieren
+        io.to(currentRoom).emit('client_count_changed', { count: roomClientsCount });
     });
 
-    // Informs all clients about updated connection counts
-    io.emit('client_count_changed', { count: io.engine.clientsCount });
-
-    // Option-Sync von der Hauptseite (mit Array & String-Validierung)
+    // Option-Sync für den aktuellen Raum
     socket.on('sync_options', (data = {}) => {
+        if (!currentRoom || !rooms[currentRoom]) return;
+
         if (data && Array.isArray(data.options)) {
-            // Begrenzung auf max. 100 Einträge & max. 50 Zeichen pro Wort (Schutz vor Server-Overload)
-            globalOptions = data.options.slice(0, 100).map(opt => String(opt).trim().substring(0, 50));
-            socket.broadcast.emit('update_options', { options: globalOptions });
+            // Begrenzung auf max. 100 Einträge & max. 50 Zeichen pro Wort
+            rooms[currentRoom].options = data.options.slice(0, 100).map(opt => String(opt).trim().substring(0, 50));
+            socket.to(currentRoom).emit('update_options', { options: rooms[currentRoom].options });
         }
     });
 
-    // 🚀 NEU: Handy schaltet Falle am PC scharf
+    // 🚀 Handy schaltet Falle am PC scharf (Raum-bezogen)
     socket.on('set_forced_main_target', (data) => {
+        if (!currentRoom || !rooms[currentRoom]) return;
+
         if (data && typeof data.targetIndex === 'number') {
-            forcedMainTarget = data.targetIndex;
-            console.log(`[🎯] [${time()}] PC-Falle aktiviert! Nächster PC-Klick landet auf Index: ${forcedMainTarget}`);
-            // Haupt-Glücksrad am PC benachrichtigen
-            io.emit('arm_pc_trap', { targetIndex: forcedMainTarget });
+            rooms[currentRoom].forcedMainTarget = data.targetIndex;
+            console.log(`[🎯] [${time()}] [Raum: ${currentRoom}] PC-Falle aktiviert! Nächster Klick landet auf Index: ${rooms[currentRoom].forcedMainTarget}`);
+            
+            // Haupt-Glücksrad im selben Raum benachrichtigen
+            io.to(currentRoom).emit('arm_pc_trap', { targetIndex: rooms[currentRoom].forcedMainTarget });
         }
     });
 
-    // 🚀 NEU: Sobald am PC gedreht wird (Falle schnappt zu)
+    // 🚀 Sobald am PC gedreht wird (Falle schnappt zu)
     socket.on('notify_pc_spun', () => {
-        forcedMainTarget = -1; // Falle zurücksetzen
-        console.log(`[🔄] [${time()}] Glücksrad wurde am PC gedreht. Falle resettet.`);
-        io.emit('wheel_spun_on_pc'); // Handy-Status-Banner aktualisieren
+        if (!currentRoom || !rooms[currentRoom]) return;
+
+        rooms[currentRoom].forcedMainTarget = -1; // Falle zurücksetzen
+        console.log(`[🔄] [${time()}] [Raum: ${currentRoom}] Glücksrad wurde am PC gedreht. Falle resettet.`);
+        io.to(currentRoom).emit('wheel_spun_on_pc'); // Handy-Status-Banner aktualisieren
     });
 
-    // 🔥 ULTRA-ROBUSTER & SPAM-SICHERER SPIN-COMMAND
+    // 🔥 ULTRA-ROBUSTER & SPAM-SICHERER SPIN-COMMAND (PRO RAUM)
     socket.on('remote_spin', (data = {}) => {
+        if (!currentRoom || !rooms[currentRoom]) return;
+
+        const roomData = rooms[currentRoom];
         const now = Date.now();
 
-        // 1. Anti-Spam Check
-        if (now - lastSpinTime < SPIN_COOLDOWN_MS) {
+        // 1. Anti-Spam Check pro Raum
+        if (now - roomData.lastSpinTime < SPIN_COOLDOWN_MS) {
             socket.emit('error_message', { message: 'Bitte warte einen Moment vor dem nächsten Dreh!' });
             return;
         }
 
-        // 2. Strikte Validierung des Ziel-Index (muss eine gültige Ganzzahl sein)
+        // 2. Strikte Validierung des Ziel-Index
         let targetIndex = undefined;
         if (data && typeof data.targetIndex === 'number' && Number.isInteger(data.targetIndex) && data.targetIndex >= 0) {
             targetIndex = data.targetIndex;
         }
 
-        lastSpinTime = now;
-        console.log(`[🚀] [${time()}] Dreh-Signal von ${socket.id} | Ziel: ${targetIndex ?? 'Zufall'}`);
+        roomData.lastSpinTime = now;
+        console.log(`[🚀] [${time()}] [Raum: ${currentRoom}] Dreh-Signal von ${socket.id} | Ziel: ${targetIndex ?? 'Zufall'}`);
 
-        // Signal an alle verbundenen Clients (Glücksrad-Displays) senden
-        io.emit('trigger_spin', { 
+        // Signal nur an Geräte im selben Raum senden
+        io.to(currentRoom).emit('trigger_spin', { 
             targetIndex,
             triggeredBy: socket.id 
         });
@@ -105,7 +169,11 @@ io.on('connection', (socket) => {
     // Trennung verarbeiten
     socket.on('disconnect', (reason) => {
         console.log(`[-] [${time()}] Gerät getrennt: ${socket.id} (${reason})`);
-        io.emit('client_count_changed', { count: io.engine.clientsCount });
+        
+        if (currentRoom) {
+            const roomClientsCount = io.sockets.adapter.rooms.get(currentRoom)?.size || 0;
+            io.to(currentRoom).emit('client_count_changed', { count: roomClientsCount });
+        }
     });
 });
 
@@ -130,11 +198,12 @@ const DOMAIN = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 server.listen(PORT, () => {
     console.clear();
     console.log(`===================================================`);
-    console.log(`🚀 GLÜCKSRAD SERVER (ULTIMATE EDITION) IS ONLINE`);
+    console.log(`🚀 GLÜCKSRAD SERVER (MULTI-ROOM EDITION) IS ONLINE`);
     console.log(`---------------------------------------------------`);
-    console.log(`🖥️  Hauptseite:   ${DOMAIN}`);
+    console.log(`🖥️  Hauptseite:    ${DOMAIN}`);
     console.log(`📱 Fernbedienung: ${DOMAIN}/remote`);
     console.log(`🩺 Health-Check:  ${DOMAIN}/health`);
+    console.log(`🔑 Master-PIN:    ${MASTER_PIN}`);
     console.log(`⚙️  Port:          ${PORT}`);
     console.log(`===================================================`);
 });
