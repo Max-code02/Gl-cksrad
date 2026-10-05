@@ -420,6 +420,7 @@ function openWheelModal(wheelToEdit?: WheelData) {
 
   if (!modal) return;
   modal.classList.add('active');
+  modal.style.display = 'flex';
 
   if (wheelToEdit) {
     if (title) title.textContent = '✏️ Glücksrad bearbeiten';
@@ -444,8 +445,15 @@ function openWheelModal(wheelToEdit?: WheelData) {
 
 function closeWheelModal() {
   const modal = $('wheelModal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+  }
 }
+
+// Expose directly to window for immediate inline onclick safety
+(window as any).openNewWheelModal = (w?: WheelData) => openWheelModal(w);
+(window as any).closeNewWheelModal = () => closeWheelModal();
 
 async function handleSaveWheelForm(e: SubmitEvent) {
   e.preventDefault();
@@ -1033,6 +1041,9 @@ function setupEventListeners() {
   // New Wheel Modal
   $('btnCreateNewWheel')?.addEventListener('click', () => openWheelModal());
   $('btnCloseWheelModal')?.addEventListener('click', closeWheelModal);
+  $('wheelModal')?.addEventListener('click', (e) => {
+    if (e.target === $('wheelModal')) closeWheelModal();
+  });
   $('wheelForm')?.addEventListener('submit', handleSaveWheelForm as any);
 
   // Add Option
@@ -1121,4 +1132,9 @@ function escapeHtml(str: string) {
     .replace(/'/g, '&#039;');
 }
 
-window.addEventListener('DOMContentLoaded', init);
+// Run immediately if DOM is already ready, or on DOMContentLoaded
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
