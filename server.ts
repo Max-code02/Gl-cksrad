@@ -1,8 +1,10 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import http from 'http';
-import { Server as SocketIOServer, Socket } from 'socket.io';
+import { Server as SocketIOServer } from 'socket.io';
+import type { Socket } from 'socket.io';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -178,8 +180,12 @@ io.on('connection', (socket: Socket) => {
 });
 
 // 3. STATISCHE DATEIEN & EXPLICITE ROUTEN
-app.use(express.static(__dirname));
-app.use(express.static(path.join(__dirname, 'dist')));
+const distDir = path.join(__dirname, 'dist');
+const distIndex = path.join(distDir, 'index.html');
+const distHandy = path.join(distDir, 'handy.html');
+
+app.use(express.static(distDir));
+app.use('/assets', express.static(path.join(distDir, 'assets')));
 
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
@@ -191,34 +197,38 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 app.get('/remote', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, 'handy.html'));
+  if (fs.existsSync(distHandy)) {
+    res.sendFile(distHandy);
+  } else {
+    res.sendFile(path.join(__dirname, 'handy.html'));
+  }
 });
 
 app.get('/handy', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, 'handy.html'));
+  if (fs.existsSync(distHandy)) {
+    res.sendFile(distHandy);
+  } else {
+    res.sendFile(path.join(__dirname, 'handy.html'));
+  }
 });
 
 app.get('/remote-simple', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, 'remote.html'));
+  if (fs.existsSync(distHandy)) {
+    res.sendFile(distHandy);
+  } else {
+    res.sendFile(path.join(__dirname, 'remote.html'));
+  }
 });
 
 app.get('/', (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  if (fs.existsSync(distIndex)) {
+    res.sendFile(distIndex);
+  } else {
+    res.sendFile(path.join(__dirname, 'index.html'));
+  }
 });
 
-// Vite Middleware im Development Modus (für HMR & Assets)
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'custom',
-    });
-    app.use(vite.middlewares);
-  } catch (err) {
-    console.warn('Vite middleware could not be loaded, using static files:', err);
-  }
-}
+app.use(express.static(__dirname));
 
 // 4. SERVER START & ELEGANTES SHUTDOWN MANAGEMENT
 const PORT = parseInt(process.env.PORT || '3000', 10);
