@@ -55,7 +55,7 @@
         body {
             background-color: var(--bg-main);
             background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 245, 0.15) 0px, transparent 50%),
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
             color: var(--text-primary);
             min-height: 100vh;
@@ -624,21 +624,22 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(11, 15, 25, 0.85);
+            background: rgba(11, 15, 25, 0.88);
             backdrop-filter: blur(8px);
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
-            z-index: 100;
+            z-index: 9999;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.2s ease;
             padding: 1rem;
         }
 
         .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
+            display: flex !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
         }
 
         .modal-card {
@@ -743,7 +744,7 @@
                 <div class="hub-title">
                     <span>🎡 Deine Glücksräder</span>
                 </div>
-                <button id="btnCreateNewWheel" class="btn-create-wheel">
+                <button id="btnCreateNewWheel" class="btn-create-wheel" onclick="if(window.openNewWheelModal)window.openNewWheelModal()">
                     ➕ Neues Glücksrad erstellen
                 </button>
             </div>
@@ -831,7 +832,7 @@
                     <input type="number" id="wheelDurationInput" class="form-input" min="1" max="30" value="6" required>
                 </div>
                 <div class="modal-actions">
-                    <button type="button" id="btnCloseWheelModal" class="btn-modal-cancel">Abbrechen</button>
+                    <button type="button" id="btnCloseWheelModal" class="btn-modal-cancel" onclick="if(window.closeNewWheelModal)window.closeNewWheelModal()">Abbrechen</button>
                     <button type="submit" class="btn-modal-save">Speichern & Starten</button>
                 </div>
             </form>
