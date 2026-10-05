@@ -330,8 +330,42 @@ function showToast(msg: string) {
   setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
+function openMobileModal() {
+  const modal = $('mobileWheelModal');
+  const titleInput = $('mobileTitleInput') as HTMLInputElement;
+  const idInput = $('mobileIdInput') as HTMLInputElement;
+  const optText = $('mobileOptionsTextarea') as HTMLTextAreaElement;
+
+  if (modal) {
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+  }
+  if (titleInput) titleInput.value = '';
+  if (idInput) idInput.value = 'rad-' + Math.random().toString(36).substring(2, 7);
+  if (optText) optText.value = '10 Punkte\n20 Punkte\nPopcorn (groß)\n5 Punkte\nNiete :(';
+}
+
+function closeMobileModal() {
+  const modal = $('mobileWheelModal');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+  }
+}
+
+// Expose to window for inline onclick safety
+(window as any).openMobileModal = () => openMobileModal();
+(window as any).closeMobileModal = () => closeMobileModal();
+
 // Event Delegation & Listeners
 function setupEventListeners() {
+  // Mobile Modal Create
+  $('btnOpenCreateModal')?.addEventListener('click', openMobileModal);
+  $('btnCloseMobileModal')?.addEventListener('click', closeMobileModal);
+  $('mobileWheelModal')?.addEventListener('click', (e) => {
+    if (e.target === $('mobileWheelModal')) closeMobileModal();
+  });
+
   // Room List Delegation
   const wheelsRemoteList = $('wheelsRemoteList');
   if (wheelsRemoteList) {
@@ -403,23 +437,6 @@ function setupEventListeners() {
         });
       }
     }
-  });
-
-  // Mobile Modal Create
-  $('btnOpenCreateModal')?.addEventListener('click', () => {
-    const modal = $('mobileWheelModal');
-    const titleInput = $('mobileTitleInput') as HTMLInputElement;
-    const idInput = $('mobileIdInput') as HTMLInputElement;
-    const optText = $('mobileOptionsTextarea') as HTMLTextAreaElement;
-
-    if (modal) modal.classList.add('active');
-    if (titleInput) titleInput.value = '';
-    if (idInput) idInput.value = 'rad-' + Math.random().toString(36).substring(2, 7);
-    if (optText) optText.value = '10 Punkte\n20 Punkte\nPopcorn (groß)\n5 Punkte\nNiete :(';
-  });
-
-  $('btnCloseMobileModal')?.addEventListener('click', () => {
-    $('mobileWheelModal')?.classList.remove('active');
   });
 
   $('mobileWheelForm')?.addEventListener('submit', async (e) => {
@@ -513,4 +530,9 @@ function escapeHtml(str: string) {
     .replace(/'/g, '&#039;');
 }
 
-window.addEventListener('DOMContentLoaded', init);
+// Run immediately if DOM is already ready, or on DOMContentLoaded
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
