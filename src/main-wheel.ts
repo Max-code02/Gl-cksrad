@@ -575,6 +575,11 @@ function resetWheelOptions() {
 
 // --- CANVAS RENDERING ---
 function resizeCanvas() {
+  const wheelView = $('wheelView');
+  if (!wheelView || wheelView.style.display === 'none') {
+    return;
+  }
+
   const wheelCanvas = $('wheelCanvas') as HTMLCanvasElement;
   if (!wheelCanvas) return;
   const ctx = wheelCanvas.getContext('2d');
@@ -582,8 +587,8 @@ function resizeCanvas() {
 
   const dpr = window.devicePixelRatio || 1;
   const container = wheelCanvas.parentElement;
-  const displayWidth = container ? container.clientWidth : 620;
-  const displayHeight = container ? container.clientHeight : 620;
+  const displayWidth = container && container.clientWidth > 0 ? container.clientWidth : 620;
+  const displayHeight = container && container.clientHeight > 0 ? container.clientHeight : 620;
 
   wheelCanvas.width = displayWidth * dpr;
   wheelCanvas.height = displayHeight * dpr;
@@ -597,6 +602,11 @@ function resizeCanvas() {
 }
 
 function drawWheel() {
+  const wheelView = $('wheelView');
+  if (!wheelView || wheelView.style.display === 'none') {
+    return;
+  }
+
   const wheelCanvas = $('wheelCanvas') as HTMLCanvasElement;
   if (!wheelCanvas) return;
   const ctx = wheelCanvas.getContext('2d');
@@ -604,11 +614,15 @@ function drawWheel() {
 
   const width = wheelCanvas.width / (window.devicePixelRatio || 1);
   const height = wheelCanvas.height / (window.devicePixelRatio || 1);
+  if (width < 60 || height < 60) return;
+
   const centerX = width / 2;
   const centerY = height / 2;
 
-  const radius = Math.min(centerX, centerY) - 30;
-  const hubRadius = Math.max(35, Math.min(60, radius * 0.18));
+  const rawRadius = Math.min(centerX, centerY) - 30;
+  if (rawRadius <= 10) return;
+  const radius = Math.max(10, rawRadius);
+  const hubRadius = Math.max(20, Math.min(60, radius * 0.18));
 
   ctx.clearRect(0, 0, width, height);
 
